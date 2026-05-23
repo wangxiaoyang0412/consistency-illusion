@@ -1,0 +1,16 @@
+# Core CARA pipeline
+torch>=2.1
+transformers>=4.40
+sentence-transformers>=2.7
+
+# Statistics and analysis
+numpy>=1.24
+scipy>=1.11
+pandas>=2.0
+
+# LLM judge (optional — only needed to re-run CARA-LLM from scratch;
+# not required for reproducing numbers from pre-computed scores)
+openai>=1.30
+
+# Utilities
+tqdm>=4.66
