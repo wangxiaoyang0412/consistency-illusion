@@ -30,14 +30,16 @@ SEED = 42
 ALPHA = 0.05  # 95% CI
 
 # ── Data loading ────────────────────────────────────────────────────────
-BASE = Path(__file__).resolve().parent
+# In the released layout, scores live in <repo>/data/{cara_scores,cara_gt}.
+import os
+ROOT = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent.parent.parent))
 
-D1_FILE = BASE / "cara_pilot" / "cara_scores_d1_n500.jsonl"
-D2_FILE = BASE / "cara_pilot" / "cara_scores_d2_n499.jsonl"
-LLAMA_FILE = BASE / "cara_pilot" / "cara_scores_llama_d2_n100.jsonl"
-GT_FILE = BASE / "cara_pilot" / "cara_gt_d2_n499.jsonl"
+D1_FILE = ROOT / "data" / "cara_scores" / "cara_scores_d1_n500.jsonl"
+D2_FILE = ROOT / "data" / "cara_scores" / "cara_scores_d2_n499.jsonl"
+LLAMA_FILE = ROOT / "data" / "cara_scores" / "cara_scores_llama_d2_n100.jsonl"
+GT_FILE = ROOT / "data" / "cara_gt" / "cara_gt_d2_n499.jsonl"
 
-OUT_FILE = BASE / "bootstrap_ci_report.md"
+OUT_FILE = ROOT / "bootstrap_ci_report.md"
 
 
 def load_jsonl(path: Path) -> list[dict]:
