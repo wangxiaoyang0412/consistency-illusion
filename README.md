@@ -115,5 +115,5 @@ This work was supported in part by the National Science Foundation under IIS-223
 
 ## Contact
 
-Xiaoyang Wang — wangxiaoyang0412@gmail.com
+Xiaoyang Wang — xw388@drexel.edu
 Issues and questions welcome via GitHub Issues.
