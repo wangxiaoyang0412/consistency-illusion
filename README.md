@@ -1,165 +1,119 @@
-# CARA & GDP — Code and Data
+# The Consistency Illusion: How Multi-Agent Debate Hides Reasoning Misalignment
 
-Anonymous code release for the paper **"The Consistency Illusion: How
-Multi-Agent Debate Hides Reasoning Misalignment"** (under review).
+[![EMNLP 2026](https://img.shields.io/badge/EMNLP%202026-Main%20Conference-red)](https://2026.emnlp.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 
-This repository contains the implementation of the CARA metric family,
-the Grounded Debate Protocol (GDP), and all data needed to reproduce
-the numerical results in the paper.
+Official code and data for the EMNLP 2026 Main Conference paper:
 
-## Repository Layout
+> **The Consistency Illusion: How Multi-Agent Debate Hides Reasoning Misalignment**
+> Xiaoyang Wang, Christopher Yang
+> *Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing (EMNLP), Budapest, Hungary.*
+
+Multi-agent LLM systems for medical QA treat answer consensus as a reliability signal — but agents can agree on an answer while reasoning in mutually incompatible ways. We introduce **CARA** (Cross-Agent Reasoning Alignment) to measure this, identify the **consistency illusion** (debate suppresses visible contradictions while reasoning similarity *drops*), and propose the **Grounded Debate Protocol (GDP)**, a prompt-level fix that repairs alignment without adding LLM calls.
+
+## Headline results
+
+| Finding | D1 MedQA (Qwen) | D2 MedThink (Qwen) | D2 MedThink (Llama-3) |
+|---|---|---|---|
+| Consistency illusion (M3 r1 vs. M4, Cohen's *d*) | −0.08 (ns) | **−0.30** | **−1.32** |
+| GDP alignment gain (GDP r1 vs. M3 r1, Cohen's *d*) | **+1.43** | **+1.62** | **+1.99** |
+| GDP expert-coverage recovery (CARA-GT, D2) | — | 80.2% → **85.6%** | — |
+
+All effects replicate across two datasets and two open-weight 70B backbones; GDP adds zero LLM calls.
+
+## Repository layout
 
 ```
 code/
-  cara/          CARA-HYB / CARA-SIM / CARA-NLI implementation
-                 (cara_hyb.py, nli_scorer.py, embedding_scorer.py,
-                  step_decomposer.py, pipeline.py, cara_gt.py,
-                  pipeline_gt.py, __init__.py)
-  analysis/     Bootstrap CI and failure-mode classification scripts
-                 (bootstrap_ci.py, extract_lowest_cara.py,
-                  classify_failure_modes.py, extract_and_classify_d2.py)
-  prompts/      M3 / GDP prompt builders and CARA-LLM judge invocation
-                 (prompt_builder_m3.py, prompt_builder_gdp.py,
-                  run_cara_llm.py)
+  cara/                      CARA-HYB / CARA-SIM / CARA-NLI implementation
+                             (step decomposition, NLI scorer, embedding scorer,
+                              pipeline, CARA-GT, label-stripping utilities)
+  analysis/                  Bootstrap CIs, failure-mode classification,
+                             flip decomposition, label-strip comparison
+  prompts/                   M3 / GDP prompt builders, CARA-LLM judge invocation
 data/
-  cara_scores/  Per-question CARA scores for all (system, round, dataset,
-                backbone) cells. JSONL with one record per question:
-                question_id, cara_hyb, cara_sim, contradiction_rate,
-                num_steps_per_agent, etc.
-  cara_gt/      CARA-GT (agent-to-expert) scores on D2 MedThink-Bench.
-  cara_llm/     GPT-4o head-to-head per-pair scores. Includes the system
-                label per pair, enabling the M3-GDP vs M3 head-to-head
-                reported in Section 7 of the paper.
-  failure_modes/  Classified low-CARA correct-answer cases, with
-                  taxonomy reports.
-  annotation/   Human-expert validation: full guidelines, blank sheet,
-                three per-annotator completed sheets.
+  cara_scores/               Per-question CARA scores for every
+                             (system, round, dataset, backbone) cell, incl.
+                             label-stripped variants
+  cara_gt/                   Agent-to-expert alignment scores (D2)
+  cara_llm/                  GPT-4o judge per-pair scores (pre-computed;
+                             no API key needed)
+  accuracy/                  Majority-vote accuracy + McNemar report
+  ablation_e1/               Generic-structure & anti-sycophancy control arms
+                             (Appendix G)
+  segmentation_sensitivity/  Alternative step-segmentation runs (Appendix E)
+  flip_analysis/             Per-question answer-change decomposition
+                             (Appendix L)
+  failure_modes/             Classified low-CARA cases + taxonomy reports
+  annotation/                Human-expert validation: guidelines, blank sheet,
+                             three completed per-annotator sheets (Appendix H)
 ```
 
-## Reproducing Paper Results
-
-All numerical claims rest on the JSONL files in `data/`. Scripts in
-`code/analysis/` provide bootstrap CIs and failure-mode classification.
-Other numbers (means, deltas, head-to-head comparisons) can be
-recomputed in a few lines of Python from the JSONL data.
-
-### Table 1 — Main CARA-HYB / SIM / CR per cell
-
-Each `data/cara_scores/*.jsonl` file contains one record per question
-with fields `cara_hyb`, `cara_sim`, `contradiction_rate`, plus system
-and round identifiers. Compute the mean over records per cell.
-
-### Figure 2 — Cohen's d forest plot (with 95% bootstrap CI)
+## Installation
 
 ```bash
-python code/analysis/bootstrap_ci.py \
-    --scores data/cara_scores/cara_scores_d1_n500.jsonl \
-    --comparisons GDP_r1_vs_M3_r1,GDP_r1_vs_M4_r0,M3_r1_vs_M4_r0 \
-    --B 10000 --seed 42
+git clone https://github.com/wangxiaoyang0412/consistency-illusion-code
+cd consistency-illusion-code
+pip install -r requirements.txt   # Python >= 3.11
 ```
 
-### Table 2 — Failure-mode taxonomy on the 50 lowest-CARA-HYB correct-answer cases
+Reproducing the paper's numbers needs **no GPU and no API keys** — all CARA, CARA-GT, and GPT-4o judge scores are released pre-computed. The GPU-backed pipeline (`code/cara/`) is included for running CARA on new traces (~9,000 traces/hour on one RTX 4090).
+
+## Reproducing paper results
+
+Every numerical claim rests on the JSONL files in `data/`. The map below links each paper artifact to its data and script.
+
+| Paper artifact | Data | Script / method |
+|---|---|---|
+| Table 1 (CARA-HYB/SIM/CR per cell) | `data/cara_scores/*.jsonl` | mean per (system, round) cell |
+| Figure 2 (Cohen's *d* + 95% CI) | `data/cara_scores/` | `code/analysis/bootstrap_ci.py --B 10000 --seed 42` |
+| Table 2 (failure-mode taxonomy) | `data/failure_modes/` | `code/analysis/classify_failure_modes.py`; reports pre-computed |
+| §7 GPT-4o head-to-head (4.86 vs. 4.50) | `data/cara_llm/cara_llm_scores.jsonl` | snippet in `data/cara_llm/` records; agreement-set pairs only |
+| Appendix C (CARA-GT, expert coverage) | `data/cara_gt/cara_gt_d2_n499.jsonl` | mean per cell + `bootstrap_ci.py` |
+| Appendix D (accuracy, McNemar) | `data/accuracy/accuracy_report.md` | pre-computed report (B=10,000, seed 42) |
+| Appendix E (parsing rate, segmentation stability) | `data/segmentation_sensitivity/` | `segsens_report.md` + per-strategy score files |
+| Appendix G (label-stripping ~90% survives) | `data/cara_scores/cara_scores_labelstripped_*.jsonl` | `code/analysis/compare_labelstripped.py` |
+| Appendix G (generic-structure / anti-sycophancy arms) | `data/ablation_e1/` | `e1_ablation_report.md` + `cara_scores_e1.jsonl` |
+| Appendix H (annotation IAA, Spearman 0.93–0.99) | `data/annotation/` | pairwise Spearman over the three scored sheets |
+| Appendix L (answer-change 2×2 decomposition) | `data/flip_analysis/` | `python code/analysis/flip_decomposition.py` |
+
+Example — the Appendix L decomposition:
 
 ```bash
-python code/analysis/extract_lowest_cara.py \
-    --scores data/cara_scores/cara_scores_d1_n500.jsonl \
-    --n 50
-python code/analysis/classify_failure_modes.py \
-    --cases data/failure_modes/classified_cases.jsonl
+$ python code/analysis/flip_decomposition.py
+total correct->incorrect flips (M3 r1 -> GDP r1, D1): 31
+flagged by the two D1-checkable signals: 14/31 (45%)
+...
+strictest residual scenario (unflagged, survives r0, overturned in debate): 5/31
 ```
-
-Pre-computed taxonomy reports are at
-`data/failure_modes/taxonomy_report.md` (D1) and
-`data/failure_modes/d2_taxonomy_report.md` (D2).
-
-### Section 7 confound defense — GDP-r1 vs M3-r1 on CARA-LLM (GPT-4o judge)
-
-The relevant data is `data/cara_llm/cara_llm_scores.jsonl`. Each record
-has fields `system` ("M3" or "M3-GDP"), `pair_type` ("agreement" or
-"disagreement"), and `cara_llm_score` (1–5, mean of 3 GPT-4o runs at
-temperature 0). To reproduce the head-to-head:
-
-```python
-import json
-from collections import defaultdict
-
-data = [json.loads(line) for line in open(
-    "data/cara_llm/cara_llm_scores.jsonl")]
-agree = [d for d in data if d.get("pair_type") is None]
-by_sys = defaultdict(list)
-for d in agree:
-    by_sys[d["system"]].append(d["cara_llm_score"])
-print({k: (len(v), sum(v)/len(v)) for k, v in by_sys.items()})
-# Expected: {'M3': (22, 4.500), 'M3-GDP': (28, 4.857)}
-# d = +0.748, 95% bootstrap CI on Delta = [+0.084, +0.646]
-```
-
-**No OpenAI API key needed** — GPT-4o scores are pre-computed.
-
-### Appendix C — CARA-GT per-cell on D2
-
-Records in `data/cara_gt/cara_gt_d2_n499.jsonl` include `system`,
-`round`, `cara_gt_hyb`, and `expert_coverage`. Compute the mean per
-cell and Cohen's d between cells using `code/analysis/bootstrap_ci.py`.
-
-### Appendix G — Annotation IAA and correlations
-
-The three per-annotator scored sheets in `data/annotation/` contain
-columns `pair_id`, `alignment_rating` (1–5), `confidence` (1–3),
-`notes`. Pairwise Spearman correlation between annotators reproduces
-the inter-annotator agreement reported in Appendix G Table 7.
-
-## Environment
-
-- Python ≥ 3.11
-- Key packages (see `requirements.txt` for pinned versions):
-  - `torch`, `transformers`, `sentence-transformers` (CARA pipeline)
-  - `numpy`, `scipy` (statistics)
-  - `openai` (only for re-running CARA-LLM; not needed for reproducing
-    numbers from pre-computed scores)
-  - `tqdm`, `pandas`
-
-## Model Checkpoints Used
-
-- **NLI**: DeBERTa-v3-large fine-tuned on MNLI/FEVER/ANLI/LingNLI/WANLI
-  (Laurer et al. 2024).
-  HuggingFace ID: `MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli`
-- **Embeddings**: Stella-EN-1.5B-v5 (Zhang et al. 2024).
-  HuggingFace ID: `dunzhang/stella_en_1.5B_v5`
-- **LLM judge**: GPT-4o via OpenAI API
-  (`gpt-4o-2024-08-06`, temperature 0.0, three runs averaged).
-- **Agent backbones** (used to generate the traces underlying our
-  `cara_scores/*.jsonl` files):
-  - Qwen 2.5 72B Instruct AWQ
-  - Llama 3.3 70B Instruct AWQ
 
 ## Datasets
 
-The CARA score files (`data/cara_scores/*.jsonl`, `data/cara_gt/*.jsonl`,
-`data/failure_modes/*.jsonl`) reference questions only by their original
-`question_id`; raw question text is **not** included in those files. To
-recover the raw text for full-scale reproduction, download the benchmarks
-from their original releases:
+We do **not** redistribute the underlying QA datasets. Obtain them from their original sources:
+- **MedQA-USMLE**: [github.com/jind11/MedQA](https://github.com/jind11/MedQA) (Jin et al., 2021)
+- **MedThink-Bench**: per Zhou et al. (2025), *npj Digital Medicine* — see the paper's data availability
 
-- **MedQA-USMLE**: https://github.com/jind11/MedQA (Jin et al. 2020)
-- **MedThink-Bench**: see Jiang et al. 2025 (https://arxiv.org/abs/2507.07988)
+The released JSONL files contain only derived per-question scores keyed by question ID, plus model-generated reasoning fragments used in the human-annotation study (no patient data; see the paper's Ethics Statement).
 
-The annotation materials (`data/annotation/annotation_booklet.md`) do
-contain the full text of the 50 questions used in the human-expert
-validation, presented to annotators alongside the two agents' reasoning
-steps. This subset is included as documentation of the annotation task;
-it is not a redistribution of the full benchmarks.
+## Citation
 
-## Note for Reviewers
+```bibtex
+@inproceedings{wang2026consistency,
+  title     = {The Consistency Illusion: How Multi-Agent Debate Hides Reasoning Misalignment},
+  author    = {Wang, Xiaoyang and Yang, Christopher},
+  booktitle = {Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2026},
+  address   = {Budapest, Hungary},
+  publisher = {Association for Computational Linguistics}
+}
+```
 
-All numerical claims in the paper can be reproduced from the JSONL
-files in `data/` using the scripts in `code/analysis/` and a few lines
-of Python (as shown in the snippet above for the CARA-LLM
-head-to-head). The actual agent inference (which produced these JSONL
-files) requires GPU resources and the open-weight LLMs noted above;
-the inference code is included in `code/cara/` and `code/prompts/` for
-inspection, but reviewers are **not** expected to re-run it.
+## Acknowledgments
 
-## License
+This work was supported in part by the National Science Foundation under IIS-2235548, and by the Department of Defense under Grant DoD W91XWH-05-1-023.
 
-MIT (see `LICENSE`).
+## Contact
+
+Xiaoyang Wang — wangxiaoyang0412@gmail.com
+Issues and questions welcome via GitHub Issues.
